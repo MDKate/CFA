@@ -16,6 +16,7 @@ from aiogram import Router, F, Bot
 from aiogram.types import FSInputFile
 from aiogram.filters import Command
 from dotenv import load_dotenv
+from aiogram.types import WebAppInfo
 
 load_dotenv()
 
@@ -90,7 +91,7 @@ async def read_table(type_z, message):
         return level, marker, text_messege, buttns
     elif type_z == 3:
         level, marker, text_messege, buttns = \
-            structure_f[structure_f['Маркер'] == 'Получить консультацию по ЦФА'].iloc[0]
+            structure_f[structure_f['Маркер'] == 'Задать свой вопрос эксперту'].iloc[0]
         return level, marker, text_messege, buttns
     elif type_z == 4:
         level, marker, text_messege, buttns = structure_f[structure_f['Маркер'] == message.text].iloc[0]
@@ -155,11 +156,58 @@ async def cmd_start1(message: Message, bot: Bot):
         builder.add(KeyboardButton(text=button_text))
     builder.adjust(1)
 
+    # Добавляем кнопку, которая откроет ссылку в браузере Telegram
+    builder.add(KeyboardButton(
+        text="Хочу выпустить ЦФА",
+        web_app=WebAppInfo(url="https://easycfa.tilda.ws/")
+    ))
+    builder.adjust(1)
+
     await bot.send_message(
         chat_id=message.chat.id,
         text=text_messege,
         reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML
     )
+
+# @router.message(F.text == 'Главная')  # Первый уровень
+# async def cmd_start1(message: Message, bot: Bot):
+#     level, marker, text_messege, buttns = await read_table(1, message)
+#     builder = ReplyKeyboardBuilder()
+#     buttns = [btn.strip() for btn in buttns.strip('[]').split(']\n[')]
+#     for button_text in buttns:
+#         builder.add(KeyboardButton(text=button_text))
+#     builder.adjust(1)
+#
+#     await bot.send_message(
+#         chat_id=message.chat.id,
+#         text="Что вас интересует?",
+#         reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML
+#     )
+
+@router.message(F.text == 'Главная')
+async def cmd_start1(message: Message, bot: Bot):
+    level, marker, text_messege, buttns = await read_table(1, message)
+    builder = ReplyKeyboardBuilder()
+
+    buttns = [btn.strip() for btn in buttns.strip('[]').split(']\n[')]
+    for button_text in buttns:
+        builder.add(KeyboardButton(text=button_text))
+
+    # Добавляем кнопку, которая откроет ссылку в браузере Telegram
+    builder.add(KeyboardButton(
+        text="Хочу выпустить ЦФА",
+        web_app=WebAppInfo(url="https://easycfa.tilda.ws/")
+    ))
+    builder.adjust(1)
+
+    await message.answer(
+        text='Что вас интересует?',
+        reply_markup=builder.as_markup(),
+        parse_mode="HTML"
+    )
+
+
+
 
 
 @router.message(lambda message: message.text not in key_buttons_text.keys()) # Второй уровень - работа с текстом
@@ -187,7 +235,7 @@ async def fn_1(message: Message, bot: Bot):
     level, marker, text_messege, buttns = await read_table(1, message)
     buttns_list = [btn.strip() for btn in buttns.strip('[]').split(']\n[')]
 
-    if internal_command == 2 and message.text != 'Получить консультацию по ЦФА':
+    if internal_command == 2 and message.text != 'Задать свой вопрос эксперту':
         level, marker, text_messege, buttns = await read_table(2, message)
         builder = ReplyKeyboardBuilder()
         buttns = [btn.strip() for btn in buttns.strip('[]').split(']\n[')]
@@ -200,7 +248,7 @@ async def fn_1(message: Message, bot: Bot):
             chat_id=message.chat.id,
             text=text_messege,
             reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML)
-    elif internal_command == 2 and message.text == 'Получить консультацию по ЦФА':
+    elif internal_command == 2 and message.text == 'Задать свой вопрос эксперту':
         level, marker, text_messege, buttns = await read_table(3, message)
         await bot.send_message(
             chat_id=message.chat.id,
