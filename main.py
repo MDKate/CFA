@@ -76,7 +76,7 @@ def update_dictionaries():
 update_dictionaries()
 
 
-
+user_context={}
 # --------------------------------Функции-------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
@@ -214,17 +214,31 @@ async def cmd_start1(message: Message, bot: Bot):
 async def fn_text(message: Message, bot: Bot):
     # with open('token_group.txt', 'r') as file:
     #     token_group = file.read().strip()
-    username = message.from_user.username
-    text_messege = f"Добрый день! \nВам поступил новый запрос по ЦФА от @{username} \nТекст запроса: <pre>{message.text}</pre>"
-    await bot.send_message(
-        chat_id=TOKEN_GROUP,
-        text=text_messege, parse_mode=ParseMode.HTML)
-    level, marker, text_messege, buttns = await read_table(3, message)
 
-    await bot.send_message(
-        chat_id=message.chat.id,
-        text=buttns, parse_mode=ParseMode.HTML)
+    user_id = message.from_user.id
+    # Проверяем, ожидаем ли мы вопрос от пользователя
+    if user_id in user_context and user_context[user_id].get('waiting_for_question', False):
+        context = user_context[user_id]
+        last_bot_message = context.get('last_bot_message')
 
+        # Получаем ожидаемый текст приглашения
+        level, marker, expected_text, buttns = await read_table(3, message)
+
+        if last_bot_message == expected_text:
+            username = message.from_user.username
+            text_messege = f"Добрый день! \nВам поступил новый запрос по ЦФА от @{username} \nТекст запроса: <pre>{message.text}</pre>"
+            await bot.send_message(
+                chat_id=TOKEN_GROUP,
+                text=text_messege, parse_mode=ParseMode.HTML)
+            level, marker, text_messege, buttns = await read_table(3, message)
+
+            await bot.send_message(
+                chat_id=message.chat.id,
+                text=buttns, parse_mode=ParseMode.HTML)
+
+        # Очищаем контекст
+        del user_context[user_id]
+        return
 
 
 @router.message(lambda message: message.text in key_buttons_1rang.keys()) # Второй уровень
@@ -250,9 +264,18 @@ async def fn_1(message: Message, bot: Bot):
             reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML)
     elif internal_command == 2 and message.text == 'Задать свой вопрос эксперту':
         level, marker, text_messege, buttns = await read_table(3, message)
+
+        # Устанавливаем контекст для пользователя
+        user_context[message.from_user.id] = {
+            'waiting_for_question': True,
+            'last_bot_message': text_messege
+        }
+
         await bot.send_message(
             chat_id=message.chat.id,
-            text=text_messege, parse_mode=ParseMode.HTML)
+            text=text_messege,
+            parse_mode=ParseMode.HTML
+        )
 
 
 @router.message(lambda message: message.text in key_buttons_termins) # Третий уровень ответы
